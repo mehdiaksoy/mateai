@@ -77,7 +77,7 @@ export class OrchestratorAgent {
     this.config = {
       name: config.name,
       description: config.description,
-      systemPrompt: config.systemPrompt || this.getDefaultSystemPrompt(),
+      systemPrompt: config.systemPrompt || this.getDefaultSystemPrompt(config.name, config.description),
       maxIterations: config.maxIterations || 5,
       enableTools: config.enableTools ?? true,
       temperature: config.temperature || 0.7,
@@ -295,10 +295,10 @@ export class OrchestratorAgent {
   /**
    * Get default system prompt
    */
-  private getDefaultSystemPrompt(): string {
-    return `You are ${this.config.name}, an intelligent AI assistant.
+  private getDefaultSystemPrompt(name: string, description: string): string {
+    return `You are ${name}, an intelligent AI assistant.
 
-${this.config.description}
+${description}
 
 Your role is to:
 - Understand user queries and provide helpful responses

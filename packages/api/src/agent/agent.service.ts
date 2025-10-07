@@ -5,35 +5,118 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { MemoryRetrievalService, ClaudeSDKAgent, LLMClientManager, loadConfig, getLogger, VectorStore } from '@mateai/core';
+import {
+  MemoryRetrievalService,
+  OrchestratorAgent,
+  ContextBuilder,
+  ToolRegistry,
+  createDefaultToolRegistry,
+  LLMClientManager,
+  loadConfig,
+  getLogger,
+  VectorStore,
+} from '@mateai/core';
 import { QueryRequestDto, QueryResponseDto } from '../common/dto/query.dto';
 
 const logger = getLogger();
 
 @Injectable()
 export class AgentService {
-  private agent: ClaudeSDKAgent;
+  private agent: OrchestratorAgent;
+  private toolRegistry: ToolRegistry;
 
   constructor() {
-    logger.info('Initializing Agent Service');
+    logger.info('Initializing Agent Service with Native Orchestrator');
 
     const config = loadConfig();
     const llmManager = new LLMClientManager(config.llm);
 
-    // Get embedding client for memory service
+    // Get clients
+    const llmClient = llmManager.getClient(config.llm.defaultProvider);
     const embeddingClient = llmManager.getClient(config.embedding.provider);
     const vectorStore = new VectorStore();
 
     // Initialize memory service
     const memoryService = new MemoryRetrievalService(vectorStore, embeddingClient);
 
-    // Create Claude SDK agent
-    this.agent = new ClaudeSDKAgent(memoryService, {
-      name: 'MateAI',
-      description: 'an intelligent AI assistant with access to your team\'s collective knowledge',
+    // Initialize context builder
+    const contextBuilder = new ContextBuilder(memoryService);
+
+    // Initialize tool registry with memory tools
+    this.toolRegistry = createDefaultToolRegistry();
+    this.setupMemoryTools(memoryService);
+
+    // Create Orchestrator Agent
+    this.agent = new OrchestratorAgent(
+      llmClient,
+      memoryService,
+      contextBuilder,
+      this.toolRegistry,
+      {
+        name: 'MateAI',
+        description: 'an intelligent AI assistant with access to your team\'s collective knowledge',
+        maxIterations: 5,
+        enableTools: true,
+        temperature: 0.7,
+        maxTokens: 2000,
+      }
+    );
+
+    logger.info('Agent Service initialized with Native Orchestrator');
+  }
+
+  /**
+   * Setup memory tools with actual implementations
+   */
+  private setupMemoryTools(memoryService: MemoryRetrievalService): void {
+    // Override search_memory tool with actual implementation
+    this.toolRegistry.register({
+      name: 'search_memory',
+      description: 'Search the knowledge base for relevant information',
+      category: 'Memory',
+      parameters: [
+        {
+          name: 'query',
+          description: 'The search query',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'limit',
+          description: 'Maximum number of results (default: 5)',
+          type: 'number',
+          required: false,
+        },
+      ],
+      handler: async (params) => {
+        try {
+          const result = await memoryService.search(params.query, {
+            topK: params.limit || 5,
+            minSimilarity: 0.65,
+          });
+
+          return {
+            success: true,
+            data: {
+              chunks: result.chunks.map((c) => ({
+                content: c.content,
+                sourceType: c.sourceType,
+                similarity: c.similarity,
+                metadata: c.metadata,
+              })),
+              totalResults: result.totalResults,
+            },
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Search failed',
+          };
+        }
+      },
     });
 
-    logger.info('Agent Service initialized');
+    logger.info('Memory tools configured');
   }
 
   /**
@@ -42,14 +125,15 @@ export class AgentService {
   async query(dto: QueryRequestDto): Promise<QueryResponseDto> {
     const startTime = Date.now();
 
-    logger.info({ query: dto.query, userId: dto.userId }, 'Processing query');
+    logger.info({ query: dto.query, userId: dto.userId }, 'Processing query with Native Orchestrator');
 
     try {
-      // Process with agent
+      // Process with orchestrator agent
       const result = await this.agent.process({
-        prompt: dto.query,
+        query: dto.query,
         userId: dto.userId || 'anonymous',
-        includeMemoryContext: dto.includeMemoryContext !== false,
+        conversationHistory: [],
+        context: { includeMemoryContext: dto.includeMemoryContext !== false },
       });
 
       const durationMs = Date.now() - startTime;
@@ -58,7 +142,9 @@ export class AgentService {
         {
           userId: dto.userId,
           durationMs,
-          steps: result.steps.length,
+          iterations: result.metadata.iterations,
+          toolsUsed: result.metadata.toolsUsed,
+          tokensUsed: result.metadata.tokensUsed,
           responseLength: result.content.length,
         },
         'Query processed successfully'
@@ -67,7 +153,8 @@ export class AgentService {
       return {
         response: result.content,
         durationMs: result.metadata.duration,
-        steps: result.steps.length,
+        steps: result.metadata.iterations,
+        toolsUsed: result.metadata.toolsUsed,
       };
     } catch (error) {
       logger.error({ error, query: dto.query }, 'Failed to process query');

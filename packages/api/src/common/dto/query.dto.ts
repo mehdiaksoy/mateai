@@ -53,10 +53,17 @@ export class QueryResponseDto {
   durationMs: number;
 
   @ApiProperty({
-    description: 'Number of steps taken by the agent',
+    description: 'Number of iterations taken by the agent',
     example: 3,
   })
   steps: number;
+
+  @ApiPropertyOptional({
+    description: 'Tools used by the agent during processing',
+    example: ['search_memory', 'find_similar'],
+    type: [String],
+  })
+  toolsUsed?: string[];
 
   @ApiPropertyOptional({
     description: 'Retrieved chunks used for context',
