@@ -1,0 +1,318 @@
+{
+  "info": {
+    "name": "MateAI REST API",
+    "description": "Complete API collection for MateAI - Collective Memory and AI Agent System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "mateai"
+  },
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Basic health check - returns simple OK status"
+          },
+          "response": []
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health/detailed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health", "detailed"]
+            },
+            "description": "Detailed health check including database connectivity"
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health/ready",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health", "ready"]
+            },
+            "description": "Kubernetes readiness probe"
+          },
+          "response": []
+        },
+        {
+          "name": "Liveness Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health/live",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health", "live"]
+            },
+            "description": "Kubernetes liveness probe"
+          },
+          "response": []
+        }
+      ],
+      "description": "Health check endpoints for monitoring and Kubernetes"
+    },
+    {
+      "name": "Agent",
+      "item": [
+        {
+          "name": "Query Agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What did the team discuss about API authentication?\",\n  \"userId\": \"user_123\",\n  \"includeMemoryContext\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/query",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "query"]
+            },
+            "description": "Send a query to the AI agent with memory context"
+          },
+          "response": []
+        },
+        {
+          "name": "Query Agent - Simple Question",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What is MateAI?\",\n  \"includeMemoryContext\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/query",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "query"]
+            },
+            "description": "Simple query without memory context"
+          },
+          "response": []
+        },
+        {
+          "name": "Query Agent - With User Context",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Summarize recent team discussions\",\n  \"userId\": \"user_456\",\n  \"includeMemoryContext\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/query",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "query"]
+            },
+            "description": "Query with user context and memory"
+          },
+          "response": []
+        }
+      ],
+      "description": "AI Agent interaction endpoints"
+    },
+    {
+      "name": "Memory",
+      "item": [
+        {
+          "name": "Search Memory",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"authentication implementation\",\n  \"limit\": 10,\n  \"minSimilarity\": 0.7\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/memory/search",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "search"]
+            },
+            "description": "Semantic search through knowledge base"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Memory - Filtered by Source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"bug fixes\",\n  \"limit\": 20,\n  \"minSimilarity\": 0.6,\n  \"sourceTypes\": [\"slack\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/memory/search",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "search"]
+            },
+            "description": "Search filtered by source type (e.g., Slack only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Search Memory - High Similarity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"database migration\",\n  \"limit\": 5,\n  \"minSimilarity\": 0.85\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/memory/search",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "search"]
+            },
+            "description": "High-confidence search with strict similarity threshold"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Memory Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/memory/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "stats"]
+            },
+            "description": "Get knowledge base statistics (total chunks, events, etc.)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recent Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/memory/recent?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "recent"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of recent events to retrieve"
+                }
+              ]
+            },
+            "description": "Get recent events from the knowledge base"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recent Events - Large Batch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/memory/recent?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "memory", "recent"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Get larger batch of recent events"
+          },
+          "response": []
+        }
+      ],
+      "description": "Memory search and retrieval endpoints"
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/docs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "docs"]
+            },
+            "description": "Interactive API documentation (Swagger UI)"
+          },
+          "response": []
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/docs-json",
+              "host": ["{{base_url}}"],
+              "path": ["api", "docs-json"]
+            },
+            "description": "OpenAPI specification in JSON format"
+          },
+          "response": []
+        }
+      ],
+      "description": "API documentation endpoints"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

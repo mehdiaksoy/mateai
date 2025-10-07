@@ -1,0 +1,25 @@
+{
+  "name": "@mateai/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for MateAI",
+  "bin": {
+    "mate": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mateai/core": "workspace:*",
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.0",
+    "ts-node": "^10.9.0"
+  }
+}

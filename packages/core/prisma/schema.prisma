@@ -1,0 +1,213 @@
+// Prisma Schema for MateAI
+// Database: PostgreSQL with pgvector extension
+
+generator client {
+  provider = "prisma-client-js"
+  // Enable preview features if needed
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ============================================================================
+// RAW EVENTS TABLE
+// Event sourcing - stores all raw events from various sources
+// ============================================================================
+
+model RawEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+
+  // Source information
+  source      String   @db.VarChar(50)    // 'slack', 'jira', 'git', etc.
+  eventType   String   @map("event_type") @db.VarChar(100) // 'message', 'issue_update', etc.
+  externalId  String?  @map("external_id") @db.VarChar(255) // ID in source system
+
+  // Raw data
+  payload     Json     @db.JsonB          // Raw event data
+  metadata    Json?    @db.JsonB          // Additional metadata
+
+  // Processing status
+  ingestedAt       DateTime  @default(now()) @map("ingested_at") @db.Timestamptz
+  processedAt      DateTime? @map("processed_at") @db.Timestamptz
+  processingStatus String    @default("pending") @map("processing_status") @db.VarChar(20) // 'pending', 'processing', 'completed', 'failed'
+
+  // Relations
+  knowledgeChunks KnowledgeChunk[]
+
+  @@index([source])
+  @@index([eventType])
+  @@index([processingStatus])
+  @@index([ingestedAt(sort: Desc)])
+  @@index([source, eventType])
+  @@map("raw_events")
+}
+
+// ============================================================================
+// KNOWLEDGE CHUNKS TABLE
+// Processed, searchable knowledge with embeddings
+// ============================================================================
+
+model KnowledgeChunk {
+  id      String @id @default(uuid()) @db.Uuid
+
+  // Content
+  content     String @db.Text            // Summarized content
+  contentHash String @unique @map("content_hash") @db.VarChar(64) // SHA-256 hash for deduplication
+
+  // Source tracking
+  sourceType String  @map("source_type") @db.VarChar(50) // 'slack', 'jira', etc.
+  sourceId   String  @map("source_id") @db.Uuid       // Reference to RawEvent
+  source     RawEvent @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  metadata        Json   @default("{}") @db.JsonB // Flexible metadata (timestamp, author, tags, etc.)
+  importanceScore Float? @map("importance_score") @db.Real // 0-1 importance score
+
+  // Embedding (Note: Prisma doesn't natively support vector type, we'll use Unsupported)
+  // We'll handle vector operations with raw SQL
+  embedding      Unsupported("vector(768)")? // 768 dimensions for Gemini text-embedding-004
+  embeddingModel String? @map("embedding_model") @db.VarChar(50) // Model used for embedding
+
+  // Lifecycle management
+  tier           String    @default("hot") @db.VarChar(20) // 'hot', 'warm', 'cold'
+  accessCount    Int       @default(0) @map("access_count")
+  lastAccessedAt DateTime? @map("last_accessed_at") @db.Timestamptz
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  conversationChunks ConversationChunk[]
+
+  @@index([sourceType])
+  @@index([tier])
+  @@index([importanceScore(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([sourceType, createdAt])
+  @@map("knowledge_chunks")
+}
+
+// ============================================================================
+// AGENT CONVERSATIONS TABLE
+// Track agent interactions with users
+// ============================================================================
+
+model AgentConversation {
+  id      String @id @default(uuid()) @db.Uuid
+
+  // User info
+  userId  String @map("user_id") @db.VarChar(255)
+  channel String @db.VarChar(100) // 'api', 'slack', 'cli'
+
+  // Request
+  query String @db.Text
+
+  // Context - stored as array of UUID strings
+  retrievedChunkIds String[] @map("retrieved_chunks")
+
+  // Response
+  response     String? @db.Text
+  actionsTaken Json?   @map("actions_taken") @db.JsonB // List of actions performed
+
+  // Metadata
+  modelUsed  String? @map("model_used") @db.VarChar(50)
+  tokensUsed Int?    @map("tokens_used")
+  latencyMs  Int?    @map("latency_ms")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  feedback AgentFeedback[]
+  chunks   ConversationChunk[]
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([userId, createdAt])
+  @@map("agent_conversations")
+}
+
+// ============================================================================
+// CONVERSATION CHUNKS JUNCTION TABLE
+// Many-to-many relationship between conversations and knowledge chunks
+// ============================================================================
+
+model ConversationChunk {
+  conversationId String           @map("conversation_id") @db.Uuid
+  chunkId        String           @map("chunk_id") @db.Uuid
+  relevanceScore Float?           @map("relevance_score") @db.Real // Similarity score
+
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  chunk          KnowledgeChunk    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, chunkId])
+  @@map("conversation_chunks")
+}
+
+// ============================================================================
+// AGENT FEEDBACK TABLE
+// User feedback for continuous improvement
+// ============================================================================
+
+model AgentFeedback {
+  id             String @id @default(uuid()) @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+
+  // Feedback
+  rating       Int     @db.SmallInt // 1-5 rating
+  feedbackText String? @map("feedback_text") @db.Text
+
+  // Timestamp
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  conversation AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([rating])
+  @@index([createdAt(sort: Desc)])
+  @@map("agent_feedback")
+}
+
+// ============================================================================
+// PROCESSING JOBS TABLE (Optional - for tracking background jobs)
+// Can be used alongside BullMQ for better visibility
+// ============================================================================
+
+model ProcessingJob {
+  id        String @id @default(uuid()) @db.Uuid
+
+  // Job info
+  jobType   String   @map("job_type") @db.VarChar(50) // 'summarization', 'embedding', etc.
+  eventId   String?  @map("event_id") @db.Uuid        // Reference to RawEvent if applicable
+  status    String   @default("pending") @db.VarChar(20) // 'pending', 'running', 'completed', 'failed'
+
+  // Job data
+  inputData  Json?   @map("input_data") @db.JsonB
+  outputData Json?   @map("output_data") @db.JsonB
+  error      String? @db.Text
+
+  // Performance
+  startedAt   DateTime? @map("started_at") @db.Timestamptz
+  completedAt DateTime? @map("completed_at") @db.Timestamptz
+  durationMs  Int?      @map("duration_ms")
+
+  // Retry tracking
+  attempts    Int @default(0)
+  maxAttempts Int @default(3) @map("max_attempts")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([jobType])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([eventId])
+  @@map("processing_jobs")
+}

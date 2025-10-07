@@ -1,0 +1,36 @@
+{
+  "name": "mateai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered collective memory system",
+  "scripts": {
+    "dev": "pnpm --filter @mateai/* run dev",
+    "build": "pnpm --filter @mateai/* run build",
+    "test": "pnpm --filter @mateai/* run test",
+    "lint": "pnpm --filter @mateai/* run lint",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,json,md}\"",
+    "clean": "pnpm --filter @mateai/* run clean && rm -rf node_modules"
+  },
+  "keywords": [
+    "ai",
+    "memory",
+    "knowledge-management",
+    "claude",
+    "gemini"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
+  }
+}

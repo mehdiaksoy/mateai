@@ -1,0 +1,21 @@
+{
+  "name": "@mateai/workers",
+  "version": "0.1.0",
+  "description": "Background workers for processing",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/main.ts",
+    "start": "node dist/main.js",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mateai/core": "workspace:*",
+    "bullmq": "^5.61.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.0"
+  }
+}
